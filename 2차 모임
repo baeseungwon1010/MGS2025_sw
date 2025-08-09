@@ -63,10 +63,7 @@ kioptrix 1.1 모의해킹
 우선 리버스쉘 따는 것
 wget 사용하는 법을 처음 사용해봐서 어렵다
 
-
+-ps
 dreamhack webhacking path
 sop(same origin policy)
-쿠키를 함께 전송하는데 이를 악의적으로 사용가능하므로 출처가 뭔지 확인하는 거 vmware에 kioptrix 1.1(level 2) 설치
-  ifconfig->nmap -sn 192.168.0.0/24로 kioptrix 찾기 -> 192.168.0.17
-  nmap -A 192.168.0.17
-  -> apache 2.0.52(centos)
+쿠키를 함께 전송하는데 이를 악의적으로 사용가능하므로 출처가 뭔지 확인하는 거
