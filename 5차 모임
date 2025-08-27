@@ -1,1 +1,41 @@
+일시: 2025.08.21 20:00~23:00
+장소: 온라인(google meet)
+활동 요약: 활동 내용 정리, dirty pipe 추가 분석
+참여자: 김채윤, 박기조, 배승원, 이효관, 임성주
 
+리눅스 커널은 디스크의 데이터를 캐싱함
+디스크 -> 메모리 page cache
+페이지 -> 디스크 page writeback
+page cache의 목적 디스크 입출력 최소화
+리눅스는 메모리 접근 속도가 디스크 접근 속도보다 빠르기 때문
+
+pipe_buf_can_merge란
+pipe_buffer 구조체 안에 존재하는 여러개의 flag 중 하나
+pipe에서 연속적으로 데이터를 쓸 때 중복된 페이지 생성을 막고 재사용을 통한 성능 향상을 목적으로 함
+리눅스 커널 메모리에 존재하며 시스템 콜 처리 과정에서 자동으로 생성
+근데 특정 버전에서 pipe_buffer를 재조정하면서 완전히 초기화 되지 않아 쓰레기값이 남게 됨
+이를 통해 특정 환경에서 pipe_buf_can_merge를 사용 가능하게 됨
+
+dirty page 
+linux kernel은 page cache가 수정되어도 dirty하다고 믿지 않으면 해당 page cache를 디스크에 다시 작성(writeback)하지 않는다
+dirty_backgroud_ratio: 전체 메모리에서 dirty page의 비율이 일정 이상이면 flush를 이용해 백그라운드에서 writeback
+dirty_ratio: 전체 메모리에서 일정 비율 이상이면 사용자의 write 호출을 블락하고 writeback
+dirty_backgroud_bytes: 특정 바이트 이상이면 flush를 이용해 writeback 
+dirty_bytes: 특정 바이트 이상이면 write호출을 블락하고 writeback
+dirty_writeback_centisecs: 특정 시간이 지나면 writeback (100당 1초)
+dirty_expire_centisecs: 생긴지 특정 시간 이상이 된 dirty page를 writeback (100당 1초)
+이를 이용해 수정 사항을 디스크에 남기지 않고 흔적 없는 공격을 수행할 수 있으며
+dirty하다고 믿게하여 디스크 정보를 수정할 수도 있다
+
+pipe를 생성을 할 때마다 그에 해당하는 page cache가 할당됨
+page가 낭비되기에 pipe_buf_can_merge를 활용함
+원래 splice()를 이용하면 pipe에 특정 page를 연결 가능한데 읽기 전용을 가지고 오면 해당 flag가 꺼져 이어서 작성 불가능
+초기화 되지 않은 쓰레기 값으로 인해 flag가 활성되어 있어 read only 파일을 수정이 가능함
+수정하고 싶은 부분의 오프셋을 참조하도록 splice()를 하여 pipe에 연결된 페이지 캐시를 임의로 변경이 가능함
+이를 이용하여 읽기 전용 파일의 내용을 수정가능하고 설정에 따라 디스크를 덮어씌우거나 흔적이 남지 않게 공격 가능
+
+개인적 공부
+시스템 해킹 공부
+PIE(Position Independent Execution): 위치 독립 실행, 실행할 때마다 바이너리의 주소에 임의의 주소값이 더해진다.
+이를 이용해 분석을 통해 특정 위치의 코드를 악용하는 것을 방해하는 보호 기법
+RERLO(RELocation Read-Only): 읽기 전용, 불필요한 쓰기나 실행 권한을 삭제하여 의도치 않은 공격의 실행을 막는 메모리 보호기법이다.
